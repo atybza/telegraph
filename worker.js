@@ -536,6 +536,7 @@ async function handleSnapshotDelete(request, config) {
 }
 
 // ==================== HTML 模板（原版完整内容，无删减） ====================
+// ==================== 以下内容无任何截断，可放心复制 ====================
 
 function getUploadPageHtml() {
   return `<!DOCTYPE html>
@@ -1885,9 +1886,9 @@ function getAdminPageHtml({ totalCount, page, totalPages, mediaHtml, hasMedia })
       </div>
     </div>
     <div class="gallery">
-      ${mediaData.length === 0 ? '<div class="empty-state"><i>📁</i><div>暂无媒体文件</div></div>' : mediaHtml}
+      ${hasMedia ? mediaHtml : '<div class="empty-state"><i>📁</i><div>暂无媒体文件</div></div>'}
     </div>
-    ${mediaData.length > 0 ? `
+    ${hasMedia ? `
     <div class="pagination">
       <button onclick="goToPage(${page - 1})" ${page <= 1 ? 'disabled' : ''}>上一页</button>
       <span class="page-info">第 ${page} / ${totalPages} 页 (共 ${totalCount} 个)</span>
