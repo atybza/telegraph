@@ -133,6 +133,18 @@ async function getTelegramFilePath(tgBotToken, fileId) {
 
 export default {
   async fetch(request, env) {
+    // ========== CORS 支持 ==========
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    };
+
+    // 浏览器的 OPTIONS 预检请求直接放行
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: corsHeaders });
+    }
+
     const { pathname } = new URL(request.url);
     const config = extractConfig(env);
 
@@ -151,13 +163,28 @@ export default {
     for (const [path, method, handler] of routes) {
       if (pathname !== path) continue;
       if (method && request.method !== method) {
-        return new Response('Method Not Allowed', { status: 405 });
+        return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
       }
-      return handler(request, config);
+      let response = await handler(request, config);
+      // 给每个响应附加 CORS 头
+      const newHeaders = new Headers(response.headers);
+      Object.entries(corsHeaders).forEach(([k, v]) => newHeaders.set(k, v));
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: newHeaders,
+      });
     }
 
-    // 默认：图片资源请求
-    return handleImageRequest(request, config);
+    // 默认图片请求也附加 CORS 头
+    let response = await handleImageRequest(request, config);
+    const newHeaders = new Headers(response.headers);
+    Object.entries(corsHeaders).forEach(([k, v]) => newHeaders.set(k, v));
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: newHeaders,
+    });
   }
 };
 
