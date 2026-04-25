@@ -148,7 +148,7 @@ export default {
     const { pathname } = new URL(request.url);
     const config = extractConfig(env);
 
-    const routes = [
+        const routes = [
       ['/', null, handleRootRequest],
       [`/${config.adminPath}`, null, requireAuth(handleAdminRequest)],
       ['/upload', 'POST', requireAuth(handleUploadRequest)],
@@ -158,6 +158,7 @@ export default {
       ['/api/snapshot/get', 'GET', requireAuth(handleSnapshotGet)],
       ['/api/snapshot/recent', 'GET', requireAuth(handleSnapshotRecent)],
       ['/api/snapshot/delete', null, requireAuth(handleSnapshotDelete)],
+      ['/api/snapshot/associate', 'POST', requireAuth(handleSnapshotAssociate)],  // 新增这一行
     ];
 
     for (const [path, method, handler] of routes) {
@@ -560,6 +561,42 @@ async function handleSnapshotDelete(request, config) {
 
   if (result.changes === 0) return jsonResponse({ message: '未找到记录' }, 404);
   return jsonResponse({ message: '删除成功' });
+}
+
+async function handleSnapshotAssociate(request, config) {
+  if (config.enableAuth && !authenticate(request, config.username, config.password)) {
+    return unauthorizedResponse();
+  }
+
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonResponse({ error: '请求体格式错误' }, 400);
+  }
+
+  const { url, prompt_hash } = body;
+  if (!url || !prompt_hash) {
+    return jsonResponse({ error: '缺少 url 或 prompt_hash 参数' }, 400);
+  }
+
+  // 检查 URL 是否在 media 表中
+  const existing = await config.database
+    .prepare('SELECT url FROM media WHERE url = ?')
+    .bind(url)
+    .first();
+
+  if (!existing) {
+    return jsonResponse({ error: '该图片未在图床中找到，请先上传' }, 404);
+  }
+
+  // 更新 prompt_hash，关联场景 ID
+  await config.database
+    .prepare('UPDATE media SET prompt_hash = ? WHERE url = ?')
+    .bind(prompt_hash, url)
+    .run();
+
+  return jsonResponse({ success: true, url, prompt_hash });
 }
 
 // ==================== HTML 模板（原版完整内容，无删减） ====================
